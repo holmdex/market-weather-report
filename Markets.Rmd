@@ -1,0 +1,770 @@
+---
+title: "Global Market Weather Report 🌍"
+subtitle: "Your Monthly Guide to Market Movement"
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: 
+      collapsed: false
+      smooth_scroll: true
+    code_folding: none
+    self_contained: true
+    highlight: null
+---
+
+```{r setup, include=FALSE}
+# Global chunk options
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 12,
+  fig.height = 8,
+  results = 'asis'
+)
+
+# Install and load required packages
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  tidyverse,
+  quantmod,
+  rvest,
+  httr,
+  jsonlite,
+  plotly,
+  DT,
+  scales,
+  lubridate,
+  viridis,
+  kableExtra,
+  forecast,
+  TTR,
+  gridExtra
+)
+
+# Set time periods
+current_date <- Sys.Date()
+last_month_end <- floor_date(current_date, "month") - days(1)
+last_month_start <- floor_date(last_month_end, "month")
+year_start <- floor_date(current_date, "year")
+
+# Define global markets to track
+market_indices <- list(
+  US = c(
+    "^GSPC" = "S&P 500 (US Large Companies)",
+    "^DJI" = "Dow Jones (US Blue Chips)",
+    "^IXIC" = "NASDAQ (US Tech Focus)"
+  ),
+  Asia = c(
+    "^N225" = "Nikkei 225 (Japan)",
+    "^HSI" = "Hang Seng (Hong Kong)",
+    "000001.SS" = "Shanghai Composite (China)"
+  ),
+  Europe = c(
+    "^FTSE" = "FTSE 100 (UK)",
+    "^GDAXI" = "DAX (Germany)",
+    "^FCHI" = "CAC 40 (France)",
+    "^OMX" = "OMX 30 (Sweden)"
+  )
+)
+
+# Enhanced color palette with more distinct colors
+options(
+  plotly.palette = function() {
+    c("#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", 
+      "#FFEEAD", "#D4A5A5", "#9B6B6B", "#E6AF2E",
+      "#A0522D", "#6B5B95")
+  }
+)
+
+# Function to fetch market data from multiple sources
+fetch_market_data <- function(symbol, from_date, to_date) {
+  data <- NULL
+  Sys.sleep(2)
+  
+  methods <- list(
+    quantmod = function() {
+      data <- getSymbols(symbol, src = "yahoo", 
+                        from = from_date, 
+                        to = to_date, 
+                        auto.assign = FALSE)
+      data.frame(
+        date = index(data),
+        price = as.numeric(Cl(data)),
+        high = as.numeric(Hi(data)),
+        low = as.numeric(Lo(data)),
+        open = as.numeric(Op(data)),
+        close = as.numeric(Cl(data)),
+        volume = as.numeric(Vo(data)),
+        symbol = symbol
+      )
+    },
+    yahoo_api = function() {
+      from_unix <- as.numeric(as.POSIXct(from_date))
+      to_unix <- as.numeric(as.POSIXct(to_date))
+      url <- sprintf(
+        "https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d",
+        URLencode(symbol), from_unix, to_unix
+      )
+      response <- httr::GET(url)
+      content <- fromJSON(rawToChar(response$content))
+      result <- content$chart$result[[1]]
+      data.frame(
+        date = as.Date(as.POSIXct(result$timestamp, origin = "1970-01-01")),
+        price = result$indicators$quote[[1]]$close,
+        high = result$indicators$quote[[1]]$high,
+        low = result$indicators$quote[[1]]$low,
+        open = result$indicators$quote[[1]]$open,
+        close = result$indicators$quote[[1]]$close,
+        volume = result$indicators$quote[[1]]$volume,
+        symbol = symbol
+      )
+    }
+  )
+  
+  for(method_name in names(methods)) {
+    tryCatch({
+      data <- methods[[method_name]]()
+      if(!is.null(data)) break
+    }, error = function(e) {
+      message(sprintf("%s failed for %s", method_name, symbol))
+    })
+  }
+  
+  if (!is.null(data)) {
+    data %>%
+      arrange(date) %>%
+      mutate(
+        returns = (price / lag(price) - 1) * 100,
+        norm_price = price / first(price) * 100,
+        trading_range = high - low,
+        range_pct = trading_range / low * 100
+      ) %>%
+      na.omit()
+  } else {
+    NULL
+  }
+}
+
+# Get monthly data
+monthly_data <- lapply(names(market_indices), function(region) {
+  lapply(names(market_indices[[region]]), function(symbol) {
+    data <- fetch_market_data(symbol, last_month_start, last_month_end)
+    if(!is.null(data)) {
+      data$region <- region
+      data$index_name <- market_indices[[region]][symbol]
+    }
+    data
+  }) %>% bind_rows()
+}) %>% bind_rows()
+
+# Get yearly data
+yearly_data <- lapply(names(market_indices), function(region) {
+  lapply(names(market_indices[[region]]), function(symbol) {
+    data <- fetch_market_data(symbol, year_start, current_date)
+    if(!is.null(data)) {
+      data$region <- region
+      data$index_name <- market_indices[[region]][symbol]
+    }
+    data
+  }) %>% bind_rows()
+}) %>% bind_rows()
+```
+## Welcome to Your Market Weather Report! 🌡️
+
+This report shows how markets around the world are doing - think of it like a weather report for the financial world. Just like weather can be sunny, cloudy, or rainy, markets can be doing well, staying steady, or facing challenges.
+
+### Understanding Market Weather
+
+```{r market_weather, echo=FALSE}
+# Create market weather indicators
+weather_summary <- monthly_data %>%
+  group_by(region, index_name) %>%
+  summarize(
+    last_return = last(returns),
+    weather_icon = case_when(
+      last_return >= 2 ~ "🌞",
+      last_return >= 0.5 ~ "🌤️",
+      last_return >= -0.5 ~ "⛅",
+      last_return >= -2 ~ "🌥️",
+      TRUE ~ "🌧️"
+    ),
+    conditions = case_when(
+      last_return >= 2 ~ "Bright and Sunny (Strong Growth)",
+      last_return >= 0.5 ~ "Mostly Sunny (Moderate Growth)",
+      last_return >= -0.5 ~ "Partly Cloudy (Steady)",
+      last_return >= -2 ~ "Mostly Cloudy (Slight Decline)",
+      TRUE ~ "Rainy (Challenging Times)"
+    ),
+    mood_color = case_when(
+      last_return >= 2 ~ "#4CAF50",
+      last_return >= 0.5 ~ "#8BC34A",
+      last_return >= -0.5 ~ "#FFC107",
+      last_return >= -2 ~ "#FF9800",
+      TRUE ~ "#F44336"
+    )
+  ) %>%
+  mutate(
+    last_return = sprintf("%.2f", last_return)
+  )
+
+# Create the weather summary table
+weather_summary %>%
+  select(region, index_name, last_return, weather_icon, conditions) %>%
+  kable(
+    format = "html",
+    escape = FALSE,
+    col.names = c("Region", "Market", "Recent Change %", "Weather", "Conditions"),
+    align = c('l', 'l', 'r', 'c', 'l'),
+    table.attr = 'class="table table-striped"'
+  ) %>% 
+  row_spec(0, background = "#B0E0E6", color = "black") %>%
+  row_spec(1:nrow(weather_summary), 
+          color = "black",
+          background = weather_summary$mood_color)
+```
+
+#### Understanding the Weather Icons:
+- 🌞 Bright and Sunny: Markets are showing strong growth (like a really nice day!)
+- 🌤️ Mostly Sunny: Markets are growing steadily (a pleasant day)
+- ⛅ Partly Cloudy: Markets are steady (neither too hot nor too cold)
+- 🌥️ Mostly Cloudy: Markets are slightly down (might need a light jacket)
+- 🌧️ Rainy: Markets are facing some challenges (might want to bring an umbrella)
+
+## Market Performance Journey 📈
+
+### This Month's Story
+```{r monthly_performance}
+# Monthly performance plot with enhanced configuration
+monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price, 
+                       color = ~index_name,
+                       colors = getOption("plotly.palette")()) %>%
+  add_lines(
+    text = ~paste(
+      index_name,
+      "\nDate: ", format(date, "%b %d"),
+      "\nValue: ", round(norm_price, 1)
+    ),
+    hoverinfo = "text"
+  ) %>%
+  layout(
+    title = list(
+      text = paste0(
+        "Monthly Market Performance (All Start at 100)",
+        "<br>",
+        "<sup>Click on market names to see through the fog! 🔍</sup>"
+      ),
+      font = list(size = 24, color = "black")
+    ),
+    yaxis = list(
+      title = "Value (Starting Point = 100)",
+      tickfont = list(size = 12, color = "black"),
+      gridcolor = "#E1E5EA",
+      fixedrange = FALSE,
+      automargin = TRUE
+    ),
+    xaxis = list(
+      title = "Date",
+      tickfont = list(size = 12, color = "black"),
+      gridcolor = "#E1E5EA",
+      automargin = TRUE
+    ),
+    showlegend = TRUE,
+    legend = list(
+      font = list(color = "black"),
+      bgcolor = "rgba(255, 255, 255, 0.9)"
+    ),
+    margin = list(l = 80, r = 80, t = 100, b = 80),
+    height = 600  # Increased height
+  )
+
+monthly_plot
+```
+
+### This Year's Journey
+```{r yearly_performance}
+# Yearly performance plot with enhanced configuration
+yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price, 
+                      color = ~index_name,
+                      colors = getOption("plotly.palette")()) %>%
+  add_lines(
+    text = ~paste(
+      index_name,
+      "\nDate: ", format(date, "%b %d"),
+      "\nValue: ", round(norm_price, 1)
+    ),
+    hoverinfo = "text"
+  ) %>%
+  layout(
+    title = list(
+      text = paste0(
+        "Yearly Market Performance (All Start at 100)",
+        "<br>",
+        "<sup>Click on market names to see through the fog! 🔍</sup>"
+      ),
+      font = list(size = 24, color = "black")
+    ),
+    yaxis = list(
+      title = "Value (Starting Point = 100)",
+      tickfont = list(size = 12, color = "black"),
+      gridcolor = "#E1E5EA",
+      fixedrange = FALSE,
+      automargin = TRUE
+    ),
+    xaxis = list(
+      title = "Date",
+      tickfont = list(size = 12, color = "black"),
+      gridcolor = "#E1E5EA",
+      automargin = TRUE
+    ),
+    showlegend = TRUE,
+    legend = list(
+      font = list(color = "black"),
+      bgcolor = "rgba(255, 255, 255, 0.9)"
+    ),
+    margin = list(l = 80, r = 80, t = 100, b = 80),
+    height = 600  # Increased height
+  )
+
+yearly_plot
+```
+## Looking Ahead: Market Forecast 🔮
+
+### What Might the Next Two Weeks Bring?
+```{r forecast_analysis}
+# Create forecasts for each market
+forecasts <- monthly_data %>%
+  group_by(index_name) %>%
+  group_modify(~{
+    # Create time series for prediction
+    ts_data <- ts(.x$price, frequency = 7)
+    
+    # Use Holt-Winters to make a forecast
+    hw_fit <- HoltWinters(ts_data)
+    hw_forecast <- forecast(hw_fit, h = 14)
+    
+    # Create forecast dataframe
+    data.frame(
+      date = seq(max(.x$date) + 1, by = "day", length.out = 14),
+      forecast = as.numeric(hw_forecast$mean),
+      lower_95 = as.numeric(hw_forecast$lower[,2]),
+      upper_95 = as.numeric(hw_forecast$upper[,2])
+    )
+  })
+
+# Create enhanced forecast visualization with linked visibility
+forecast_plot <- plot_ly() %>%
+  # Add historical data lines
+  add_lines(data = monthly_data, 
+           x = ~date, 
+           y = ~price,
+           color = ~index_name,
+           colors = getOption("plotly.palette")(),
+           name = ~index_name,
+           legendgroup = ~index_name,
+           line = list(width = 2),
+           text = ~paste(
+             index_name,
+             "\nDate:", format(date, "%b %d"),
+             "\nValue:", round(price, 2)
+           ),
+           hoverinfo = "text") %>%
+  # Add forecast confidence intervals
+  add_ribbons(data = forecasts,
+             x = ~date,
+             ymin = ~lower_95,
+             ymax = ~upper_95,
+             color = ~index_name,
+             colors = getOption("plotly.palette")(),
+             opacity = 0.2,
+             legendgroup = ~index_name,
+             showlegend = FALSE,
+             name = "Possible Range",
+             text = ~paste(
+               index_name,
+               "\nDate:", format(date, "%b %d"),
+               "\nRange:", round(lower_95, 2), "to", round(upper_95, 2)
+             ),
+             hoverinfo = "text") %>%
+  # Add forecast lines
+  add_lines(data = forecasts,
+           x = ~date,
+           y = ~forecast,
+           color = ~index_name,
+           colors = getOption("plotly.palette")(),
+           line = list(dash = 'dash'),
+           legendgroup = ~index_name,
+           showlegend = FALSE,
+           text = ~paste(
+             index_name,
+             "\nDate:", format(date, "%b %d"),
+             "\nForecast:", round(forecast, 2)
+           ),
+           hoverinfo = "text") %>%
+  layout(
+    title = list(
+      text = paste0(
+        "Market Crystal Ball: Next 14 Days",
+        "<br>",
+        "<sup>Click on market names to see each market's potential future path! 🔮</sup>"
+      ),
+      font = list(size = 24, color = "black"),
+      y = 0.95
+    ),
+    plot_bgcolor = "#F7FBFF",
+    paper_bgcolor = "#F7FBFF",
+    yaxis = list(
+      title = "Price Level",
+      gridcolor = "#E1E5EA",
+      tickfont = list(size = 12, color = "black"),
+      automargin = TRUE
+    ),
+    xaxis = list(
+      title = "Date",
+      gridcolor = "#E1E5EA",
+      tickfont = list(size = 12, color = "black"),
+      automargin = TRUE
+    ),
+    margin = list(l = 80, r = 80, t = 100, b = 80),
+    height = 600,
+    legend = list(
+      orientation = "h",
+      y = -0.2,
+      x = 0.5,
+      xanchor = "center",
+      bgcolor = "rgba(255, 255, 255, 0.9)",
+      bordercolor = "#E1E5EA",
+      borderwidth = 1,
+      font = list(color = "black")
+    ),
+    shapes = list(
+      list(
+        type = "line",
+        x0 = max(monthly_data$date),
+        x1 = max(monthly_data$date),
+        y0 = 0,
+        y1 = 1,
+        yref = "paper",
+        line = list(color = "#957DAD", dash = "dot", width = 2)
+      )
+    ),
+    annotations = list(
+      list(
+        x = max(monthly_data$date),
+        y = 1,
+        yref = "paper",
+        text = "Forecast Starts",
+        showarrow = FALSE,
+        bgcolor = "white",
+        bordercolor = "#957DAD",
+        font = list(size = 14, color = "black")
+      )
+    )
+  )
+
+forecast_plot
+```
+
+### Understanding the Crystal Ball View 🔮
+
+The crystal ball shows three key elements for each market:
+- Solid Line: The actual market journey so far
+- Dashed Line: The most likely path ahead
+- Shaded Area: The range of possible movements
+
+When you click on a market name in the legend, you'll see:
+1. Where that market has been (solid line)
+2. Where it might go (dashed line)
+3. The range of possibilities (shaded area)
+
+This helps clear away the fog and focus on one market at a time!
+
+```{r trading_patterns}
+# Calculate overall market patterns
+overall_day_summary <- monthly_data %>%
+  mutate(
+    day_of_week = weekdays(date),
+    is_up_day = returns > 0
+  ) %>%
+  group_by(day_of_week) %>%
+  summarize(
+    success_rate = sprintf("%.1f", mean(is_up_day, na.rm = TRUE) * 100),
+    average_move = sprintf("%.1f", mean(returns, na.rm = TRUE)),
+    day_rating = case_when(
+      as.numeric(success_rate) >= 60 ~ "🌟 Strong Day",
+      as.numeric(success_rate) >= 50 ~ "⭐ Good Day",
+      TRUE ~ "✨ Challenging Day"
+    ),
+    description = case_when(
+      as.numeric(success_rate) >= 60 ~ "Markets often shine brightest!",
+      as.numeric(success_rate) >= 50 ~ "A generally pleasant market day",
+      TRUE ~ "Markets might need their morning coffee ☕"
+    )
+  ) %>%
+  arrange(desc(as.numeric(success_rate)))
+
+# Create weekly rhythm summary
+overall_day_summary %>%
+  select(day_of_week, success_rate, day_rating, description) %>%
+  rename(
+    "Day of Week" = day_of_week,
+    "Success Rate %" = success_rate,
+    "Market Mood" = day_rating,
+    "What to Expect" = description
+  ) %>%
+  kable(
+    format = "html",
+    escape = FALSE,
+    align = c('l', 'r', 'c', 'l'),
+    caption = "The Market's Weekly Rhythm Guide"
+  ) %>%
+  kable_styling() %>%
+  row_spec(0, background = "#FFE5B4", color = "black") %>%
+  row_spec(1:nrow(overall_day_summary), 
+          color = "black",
+          background = "#F0F8FF") %>%
+  row_spec(1, background = "#E8F8E8") %>%
+  row_spec(nrow(overall_day_summary), background = "#FFE8E8")
+```
+```{css, echo=FALSE}
+/* Global text color settings */
+body, p, h1, h2, h3, h4, h5, h6, th, td, li, .table, .tocify {
+  color: black !important;
+}
+
+/* Enhanced TOC styling */
+.tocify {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.tocify .tocify-item a {
+  color: black !important;
+  padding: 8px 15px;
+}
+
+.tocify .tocify-item.active > a {
+  background-color: #e9ecef;
+  border-left: 4px solid #4CAF50;
+}
+
+.tocify .tocify-subheader {
+  text-indent: 15px;
+}
+
+.tocify .tocify-subheader .tocify-subheader {
+  text-indent: 30px;
+}
+
+/* Dashboard styling */
+.market-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+  border-radius: 12px;
+}
+
+/* Plot styling */
+.plotly {
+  margin: 30px 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease;
+  background: white;
+  padding: 15px;
+}
+
+.plotly:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+/* Table styling */
+table {
+  margin: 25px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  background: white;
+}
+
+/* Header styling */
+h2 {
+  color: black !important;
+  margin-top: 50px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid #e1e8f0;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  position: relative;
+}
+
+h2::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: #4CAF50;
+}
+
+/* Note styling */
+.helpful-note {
+  background: linear-gradient(to right, #f8f9fa, white);
+  border-left: 4px solid #4CAF50;
+  padding: 20px;
+  margin: 25px 0;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* Date stamp styling */
+.date-stamp {
+  text-align: center;
+  color: black !important;
+  font-size: 0.95em;
+  margin: 25px 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+```
+
+## Market Health Review 🏥
+```{r health_check}
+# Calculate market health metrics
+health_check <- monthly_data %>%
+  group_by(region, index_name) %>%
+  summarize(
+    trend_emoji = case_when(
+      mean(tail(returns, 5)) > 1 ~ "💚",
+      mean(tail(returns, 5)) > 0 ~ "💛",
+      mean(tail(returns, 5)) > -1 ~ "🤍",
+      TRUE ~ "❤️"
+    ),
+    trend_text = case_when(
+      mean(tail(returns, 5)) > 1 ~ "Strong Upward Movement",
+      mean(tail(returns, 5)) > 0 ~ "Gentle Upward Movement",
+      mean(tail(returns, 5)) > -1 ~ "Steady Movement",
+      TRUE ~ "Taking a Break"
+    ),
+    stability_emoji = case_when(
+      sd(returns) < 1 ~ "🌟🌟🌟",
+      sd(returns) < 2 ~ "🌟🌟",
+      TRUE ~ "🌟"
+    ),
+    stability_text = case_when(
+      sd(returns) < 1 ~ "Very Stable",
+      sd(returns) < 2 ~ "Moderately Stable",
+      TRUE ~ "More Variable"
+    ),
+    monthly_trend = sprintf("%.1f%%", sum(returns > 0) / n() * 100)
+  )
+
+# Create health indicators table
+health_check %>%
+  select(
+    region, index_name, 
+    trend_emoji, trend_text,
+    stability_emoji, stability_text,
+    monthly_trend
+  ) %>%
+  kable(
+    format = "html",
+    escape = FALSE,
+    col.names = c("Region", "Market", 
+                 "Current Health", "Status",
+                 "Stability", "Movement Pattern",
+                 "Positive Days"),
+    align = c('l', 'l', 'c', 'l', 'c', 'l', 'r'),
+    caption = "Market Health Indicators"
+  ) %>%
+  kable_styling() %>%
+  row_spec(0, background = "#FFE5B4", color = "black") %>%
+  row_spec(1:nrow(health_check), 
+          color = "black",
+          background = "#F0F8FF")
+```
+
+## Monthly Summary Card 📋
+```{r summary_card}
+# Calculate overall metrics
+monthly_summary <- monthly_data %>%
+  summarize(
+    total_markets = n_distinct(index_name),
+    growing_markets = sum(last(returns) > 0, na.rm = TRUE),
+    avg_return = mean(returns, na.rm = TRUE),
+    volatility = sd(returns, na.rm = TRUE)
+  ) %>%
+  mutate(
+    market_mood = case_when(
+      avg_return > 1 ~ "📈 Growing Together",
+      avg_return > 0 ~ "↗️ Gentle Progress",
+      avg_return > -1 ~ "↔️ Finding Balance",
+      TRUE ~ "🔄 Reset and Rebuild"
+    ),
+    stability = case_when(
+      volatility < 1 ~ "🌟 Very Stable",
+      volatility < 2 ~ "⭐ Moderately Stable",
+      TRUE ~ "✨ More Dynamic"
+    )
+  )
+
+# Create summary display
+data.frame(
+  Metric = c(
+    "Markets Tracked",
+    "Growing Markets",
+    "Overall Mood",
+    "Market Stability",
+    "Month's Story"
+  ),
+  Value = c(
+    as.character(monthly_summary$total_markets),
+    as.character(monthly_summary$growing_markets),
+    monthly_summary$market_mood,
+    monthly_summary$stability,
+    paste0(ifelse(monthly_summary$avg_return > 0, "🎯 ", "🎲 "),
+           case_when(
+             monthly_summary$avg_return > 1 ~ "Strength in Unity",
+             monthly_summary$avg_return > 0 ~ "Steady Progress",
+             monthly_summary$avg_return > -1 ~ "Navigating Change",
+             TRUE ~ "Building Resilience"
+           ))
+  )
+) %>%
+  kable(
+    format = "html",
+    escape = FALSE,
+    align = c('l', 'l'),
+    caption = "This Month at a Glance"
+  ) %>%
+  kable_styling() %>%
+  row_spec(0, background = "#FFE5B4", color = "black") %>%
+  row_spec(1:5, 
+          color = "black",
+          background = "#F0F8FF")
+```
+
+## Report Information ℹ️
+<div class="date-stamp">
+- Report Generated: `r format(Sys.time(), "%B %d, %Y at %H:%M %Z")`
+- Data Through: `r format(max(monthly_data$date), "%B %d, %Y")`
+- Next Update: `r format(ceiling_date(Sys.Date(), "month"), "%B %d, %Y")`
+</div>
+
+<div class="helpful-note">
+Remember: This report is like a weather forecast for markets - it helps you understand what's happening, but doesn't predict exactly what will happen next. Always consult with financial professionals for investment advice. However, remember that the only one responsible for your savings is you, do your best!
+</div>
