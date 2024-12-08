@@ -1,20 +1,17 @@
-name: Monthly Market Report Generation
-
+name: Generate Monthly Market Report
 on:
   schedule:
-    - cron: '0 0 1 * *'  # Runs at 00:00 on the first day of every month
+    - cron: '0 0 1 * *'  # Runs at midnight on the first day of each month
   workflow_dispatch:      # Allows manual trigger
 
 jobs:
   generate-report:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      
-    steps:
-    - uses: actions/checkout@v2
     
-    - name: Set up R
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup R
       uses: r-lib/actions/setup-r@v2
       with:
         r-version: '4.2.1'
@@ -22,13 +19,31 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev pandoc
-
-    - name: Install R packages
+        sudo apt-get install -y \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libxml2-dev \
+          libfontconfig1-dev \
+          libfreetype6-dev \
+          libharfbuzz-dev \
+          libfribidi-dev \
+          libpng-dev \
+          libtiff5-dev \
+          libjpeg-dev \
+          cmake \
+          pkg-config
+    
+    - name: Cache R packages
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.R_LIBS_USER }}
+        key: ${{ runner.os }}-r-${{ hashFiles('**/market-report.Rmd') }}
+        restore-keys: ${{ runner.os }}-r-
+    
+    - name: Install R dependencies
       run: |
-        install.packages(c(
-          'pacman',
-          'rmarkdown',
+        install.packages('pak', repos = 'https://r-lib.github.io/p/pak/dev/')
+        pak::pkg_install(c(
           'tidyverse',
           'quantmod',
           'rvest',
@@ -42,22 +57,20 @@ jobs:
           'kableExtra',
           'forecast',
           'TTR',
-          'gridExtra'
-        ), repos = 'https://cloud.r-project.org')
+          'gridExtra',
+          'rmarkdown',
+          'knitr'
+        ))
       shell: Rscript {0}
-
+    
     - name: Generate report
       run: |
-        rmarkdown::render("R/Markets.Rmd", 
-                         output_file = paste0("market_report_", 
-                                            format(Sys.Date(), "%Y_%m"), 
-                                            ".html"))
-      shell: Rscript {0}
-
-    - name: Commit and push changes
-      run: |
-        git config --local user.email "actions@github.com"
-        git config --local user.name "GitHub Actions"
-        git add *.html
-        git commit -m "Monthly market report update: $(date +'%Y-%m')" || echo "No changes to commit"
-        git push origin || echo "No changes to push"
+        Rscript -e "rmarkdown::render('R/Markets.Rmd', output_file = 'index.html')"
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./R
+        publish_branch: gh-pages
+        keep_files: true
