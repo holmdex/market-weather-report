@@ -1,7 +1,7 @@
 name: Generate Monthly Market Report
 on:
   schedule:
-    - cron: '0 0 1 * *'  # Fixed the cron syntax
+    - cron: '0 0 1 * *'
   workflow_dispatch:
 
 permissions:
@@ -70,12 +70,12 @@ jobs:
     
     - name: Generate report
       run: |
-        Rscript -e "rmarkdown::render('R/Markets.Rmd', output_file = 'index.html')"
+        Rscript -e "rmarkdown::render('R/Markets.Rmd', output_file = '../index.html')"
     
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./R
+        publish_dir: .
         publish_branch: gh-pages
         keep_files: true
