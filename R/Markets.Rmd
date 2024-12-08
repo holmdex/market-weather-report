@@ -640,6 +640,13 @@ h2::after {
   border-radius: 8px;
   border: 1px solid #eee;
 }
+
+div.main-container {  
+  max-width: 95vw;
+
+
+}
+
 ```
 
 ## Market Health Review 🏥
@@ -766,5 +773,5 @@ data.frame(
 </div>
 
 <div class="helpful-note">
-Remember: This report is like a weather forecast for markets - it helps you understand what's happening, but doesn't predict exactly what will happen next. Always consult with financial professionals for investment advice. However, remember that the only one responsible for your savings is you, do your best!
+Remember: This report is like a weather forecast for markets - it helps you understand what's currently happening (last month and a Holt-Winters prediction of the coming two months), but doesn't predict exactly what will happen next which is from today and forward. Always consult with financial professionals for investment advice and please be aware of the current financial situation in your country. Remember that the only one responsible for your savings is you, do your best!
 </div>
