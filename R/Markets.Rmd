@@ -640,6 +640,13 @@ h2::after {
   border-radius: 8px;
   border: 1px solid #eee;
 }
+
+div.main-container {  
+  max-width: 95vw;
+
+
+}
+
 ```
 
 ## Market Health Review 🏥
