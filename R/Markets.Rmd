@@ -145,7 +145,6 @@ fetch_market_data <- function(symbol, from_date, to_date) {
   if (!is.null(data)) {
     data %>%
       arrange(date) %>%
-      # Filter out Sundays
       filter(weekdays(date) != "Sunday") %>%
       mutate(
         returns = (price / lag(price) - 1) * 100,
@@ -516,7 +515,7 @@ forecast_plot <- plot_ly() %>%
   layout(
     title = list(
       text = paste0(
-        "Market Crystal Ball: Next Two Weeks (Excluding Sundays)",
+        "Market Crystal Ball: Next Two Weeks",
         "<br>",
         "<sup>Double-Click on market names to see each market's potential future path! 🔮</sup>"
       ),
@@ -580,7 +579,7 @@ forecast_plot
 
 The crystal ball shows three key elements for each market:
 - Solid Line: The actual market journey so far
-- Dashed Line: The most likely path ahead (excluding Sundays)
+- Dashed Line: The most likely path ahead
 - Shaded Area: The range of possible movements
 
 When you double-click on a market name in the legend, you'll see:
