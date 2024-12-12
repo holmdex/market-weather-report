@@ -51,7 +51,7 @@ last_month_end <- floor_date(current_date, "month") - days(1)
 last_month_start <- floor_date(last_month_end, "month")
 year_start <- floor_date(current_date, "year")
 
-# Define global markets to track
+# Define global markets to track with added Canada and Australia
 market_indices <- list(
   US = c(
     "^GSPC" = "S&P 500 (US Large Companies)",
@@ -61,13 +61,20 @@ market_indices <- list(
   Asia = c(
     "^N225" = "Nikkei 225 (Japan)",
     "^HSI" = "Hang Seng (Hong Kong)",
-    "000001.SS" = "Shanghai Composite (China)"
+    "000001.SS" = "Shanghai Composite (China)",
+    "^NSEI" = "Nifty 50 (India)"
   ),
   Europe = c(
     "^FTSE" = "FTSE 100 (UK)",
     "^GDAXI" = "DAX (Germany)",
     "^FCHI" = "CAC 40 (France)",
     "^OMX" = "OMX 30 (Sweden)"
+  ),
+  Americas = c(
+    "^GSPTSE" = "S&P/TSX Composite (Canada)"
+  ),
+  Pacific = c(
+    "^AORD" = "All Ordinaries (Australia)"
   )
 )
 
@@ -76,7 +83,8 @@ options(
   plotly.palette = function() {
     c("#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", 
       "#FFEEAD", "#D4A5A5", "#9B6B6B", "#E6AF2E",
-      "#A0522D", "#6B5B95")
+      "#A0522D", "#6B5B95", "#2E86C1", "#28B463",
+      "#FF69B4")
   }
 )
 
@@ -137,6 +145,8 @@ fetch_market_data <- function(symbol, from_date, to_date) {
   if (!is.null(data)) {
     data %>%
       arrange(date) %>%
+      # Filter out Sundays
+      filter(weekdays(date) != "Sunday") %>%
       mutate(
         returns = (price / lag(price) - 1) * 100,
         norm_price = price / first(price) * 100,
@@ -177,62 +187,160 @@ yearly_data <- lapply(names(market_indices), function(region) {
 
 This report shows how markets around the world are doing - think of it like a weather report for the financial world. Just like weather can be sunny, cloudy, or rainy, markets can be doing well, staying steady, or facing challenges.
 
-### Understanding Market Weather
+### Understanding Market Weather (Last Month)
 
-```{r market_weather, echo=FALSE}
-# Create market weather indicators
-weather_summary <- monthly_data %>%
+```{r monthly_weather, echo=FALSE}
+# Create monthly market weather indicators
+monthly_weather_summary <- monthly_data %>%
   group_by(region, index_name) %>%
   summarize(
     last_return = last(returns),
-    weather_icon = case_when(
-      last_return >= 2 ~ "🌞",
-      last_return >= 0.5 ~ "🌤️",
-      last_return >= -0.5 ~ "⛅",
-      last_return >= -2 ~ "🌥️",
-      TRUE ~ "🌧️"
-    ),
-    conditions = case_when(
-      last_return >= 2 ~ "Bright and Sunny (Strong Growth)",
-      last_return >= 0.5 ~ "Mostly Sunny (Moderate Growth)",
-      last_return >= -0.5 ~ "Partly Cloudy (Steady)",
-      last_return >= -2 ~ "Mostly Cloudy (Slight Decline)",
-      TRUE ~ "Rainy (Challenging Times)"
-    ),
-    mood_color = case_when(
-      last_return >= 2 ~ "#4CAF50",
-      last_return >= 0.5 ~ "#8BC34A",
-      last_return >= -0.5 ~ "#FFC107",
-      last_return >= -2 ~ "#FF9800",
-      TRUE ~ "#F44336"
-    )
+    .groups = 'drop'  # This ensures we drop the grouping
   ) %>%
   mutate(
+    weather_icon = case_when(
+      last_return >= 5 ~ "🌞",        # Exceptional monthly gain
+      last_return >= 3 ~ "🌤️",        # Strong monthly gain
+      last_return >= 1 ~ "⛅",         # Moderate monthly gain
+      last_return >= 0 ~ "🌥️",        # Slight monthly gain
+      last_return >= -1 ~ "☁️",       # Stable/minor decline
+      last_return >= -3 ~ "🌧️",       # Moderate decline
+      last_return >= -5 ~ "⛈️",       # Significant decline
+      last_return >= -7 ~ "🌪️",       # Major decline
+      TRUE ~ "⚡"                      # Severe decline
+    ),
+    conditions = case_when(
+      last_return >= 5 ~ "Exceptional Month (Outstanding Performance)",
+      last_return >= 3 ~ "Very Strong Month (Robust Growth)",
+      last_return >= 1 ~ "Strong Month (Solid Growth)",
+      last_return >= 0 ~ "Positive Month (Steady Progress)",
+      last_return >= -1 ~ "Stable Month (Minor Fluctuation)",
+      last_return >= -3 ~ "Challenging Month (Moderate Weakness)",
+      last_return >= -5 ~ "Difficult Month (Notable Decline)",
+      last_return >= -7 ~ "Tough Month (Significant Pressure)",
+      TRUE ~ "Critical Month (Severe Market Stress)"
+    ),
+    mood_color = case_when(
+      last_return >= 5 ~ "#006400",   # Dark green
+      last_return >= 3 ~ "#4CAF50",   # Medium green
+      last_return >= 1 ~ "#8BC34A",   # Light green
+      last_return >= 0 ~ "#CDDC39",   # Lime
+      last_return >= -1 ~ "#FFC107",  # Amber
+      last_return >= -3 ~ "#FF9800",  # Orange
+      last_return >= -5 ~ "#FF5722",  # Deep orange
+      last_return >= -7 ~ "#F44336",  # Red
+      TRUE ~ "#B71C1C"                # Dark red
+    ),
     last_return = sprintf("%.2f", last_return)
   )
 
-# Create the weather summary table
-weather_summary %>%
-  select(region, index_name, last_return, weather_icon, conditions) %>%
-  kable(
+# Create the monthly weather summary table
+monthly_table <- monthly_weather_summary %>%
+  select(region, index_name, last_return, weather_icon, conditions)
+
+# Apply row-specific styling
+table_styled <- kable(monthly_table,
     format = "html",
     escape = FALSE,
-    col.names = c("Region", "Market", "Recent Change %", "Weather", "Conditions"),
+    col.names = c("Region", "Market", "Last Month's Change %", "Weather", "Conditions"),
     align = c('l', 'l', 'r', 'c', 'l'),
     table.attr = 'class="table table-striped"'
   ) %>% 
-  row_spec(0, background = "#B0E0E6", color = "black") %>%
-  row_spec(1:nrow(weather_summary), 
-          color = "black",
-          background = weather_summary$mood_color)
+  kable_styling() %>%
+  row_spec(0, background = "#B0E0E6", color = "black")
+
+# Apply individual row colors
+for(i in 1:nrow(monthly_weather_summary)) {
+  table_styled <- table_styled %>%
+    row_spec(i, background = monthly_weather_summary$mood_color[i], color = "black")
+}
+
+table_styled
+
+```
+
+
+### Understanding Market Weather (This Year)
+
+```{r yearly_weather, echo=FALSE}
+# Create yearly market weather indicators
+yearly_weather_summary <- yearly_data %>%
+  group_by(region, index_name) %>%
+  summarize(
+    total_return = (last(price) / first(price) - 1) * 100,
+    .groups = 'drop'  # This ensures we drop the grouping
+  ) %>%
+  mutate(
+    weather_icon = case_when(
+      total_return >= 20 ~ "🌞",      # Exceptional year
+      total_return >= 15 ~ "🌤️",      # Very strong year
+      total_return >= 10 ~ "⛅",       # Strong year
+      total_return >= 5 ~ "🌥️",       # Positive year
+      total_return >= 0 ~ "☁️",       # Stable year
+      total_return >= -5 ~ "🌧️",      # Challenging year
+      total_return >= -10 ~ "⛈️",     # Difficult year
+      total_return >= -15 ~ "🌪️",     # Tough year
+      TRUE ~ "⚡"                      # Critical year
+    ),
+    conditions = case_when(
+      total_return >= 20 ~ "Exceptional Year (Bull Market Leader)",
+      total_return >= 15 ~ "Very Strong Year (Robust Bull Run)",
+      total_return >= 10 ~ "Strong Year (Solid Performance)",
+      total_return >= 5 ~ "Good Year (Steady Growth)",
+      total_return >= 0 ~ "Stable Year (Maintaining Value)",
+      total_return >= -5 ~ "Challenging Year (Minor Correction)",
+      total_return >= -10 ~ "Difficult Year (Correction Territory)",
+      total_return >= -15 ~ "Tough Year (Deep Correction)",
+      TRUE ~ "Critical Year (Bear Market Territory)"
+    ),
+    mood_color = case_when(
+      total_return >= 20 ~ "#006400",  # Dark green
+      total_return >= 15 ~ "#4CAF50",  # Medium green
+      total_return >= 10 ~ "#8BC34A",  # Light green
+      total_return >= 5 ~ "#CDDC39",   # Lime
+      total_return >= 0 ~ "#FFC107",   # Amber
+      total_return >= -5 ~ "#FF9800",  # Orange
+      total_return >= -10 ~ "#FF5722", # Deep orange
+      total_return >= -15 ~ "#F44336", # Red
+      TRUE ~ "#B71C1C"                 # Dark red
+    ),
+    total_return = sprintf("%.2f", total_return)
+  )
+
+# Create the yearly weather summary table
+yearly_table <- yearly_weather_summary %>%
+  select(region, index_name, total_return, weather_icon, conditions)
+
+# Apply row-specific styling
+table_styled <- kable(yearly_table,
+    format = "html",
+    escape = FALSE,
+    col.names = c("Region", "Market", "Year-to-Date Change %", "Weather", "Conditions"),
+    align = c('l', 'l', 'r', 'c', 'l'),
+    table.attr = 'class="table table-striped"'
+  ) %>% 
+  kable_styling() %>%
+  row_spec(0, background = "#B0E0E6", color = "black")
+
+# Apply individual row colors
+for(i in 1:nrow(yearly_weather_summary)) {
+  table_styled <- table_styled %>%
+    row_spec(i, background = yearly_weather_summary$mood_color[i], color = "black")
+}
+
+table_styled
 ```
 
 #### Understanding the Weather Icons:
-- 🌞 Bright and Sunny: Markets are showing strong growth (like a really nice day!)
-- 🌤️ Mostly Sunny: Markets are growing steadily (a pleasant day)
-- ⛅ Partly Cloudy: Markets are steady (neither too hot nor too cold)
-- 🌥️ Mostly Cloudy: Markets are slightly down (might need a light jacket)
-- 🌧️ Rainy: Markets are facing some challenges (might want to bring an umbrella)
+- 🌞 Bright and Sunny: Exceptional performance
+- 🌤️ Mostly Sunny: Very strong performance
+- ⛅ Partly Sunny: Strong performance
+- 🌥️ Mostly Cloudy: Positive but moderate
+- ☁️ Cloudy: Stable/neutral performance
+- 🌧️ Light Rain: Minor weakness
+- ⛈️ Storm: Significant weakness
+- 🌪️ Tornado: Major turbulence
+- ⚡ Lightning: Severe market stress
 
 ## Market Performance Journey 📈
 
@@ -255,7 +363,7 @@ monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price,
       text = paste0(
         "Monthly Market Performance (All Start at 100)",
         "<br>",
-        "<sup>Click on market names to see through the fog! 🔍</sup>"
+        "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
       ),
       font = list(size = 24, color = "black")
     ),
@@ -278,7 +386,7 @@ monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price,
       bgcolor = "rgba(255, 255, 255, 0.9)"
     ),
     margin = list(l = 80, r = 80, t = 100, b = 80),
-    height = 600  # Increased height
+    height = 600
   )
 
 monthly_plot
@@ -303,7 +411,7 @@ yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price,
       text = paste0(
         "Yearly Market Performance (All Start at 100)",
         "<br>",
-        "<sup>Click on market names to see through the fog! 🔍</sup>"
+        "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
       ),
       font = list(size = 24, color = "black")
     ),
@@ -326,11 +434,12 @@ yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price,
       bgcolor = "rgba(255, 255, 255, 0.9)"
     ),
     margin = list(l = 80, r = 80, t = 100, b = 80),
-    height = 600  # Increased height
+    height = 600
   )
 
 yearly_plot
 ```
+
 ## Looking Ahead: Market Forecast 🔮
 
 ### What Might the Next Two Weeks Bring?
@@ -346,18 +455,20 @@ forecasts <- monthly_data %>%
     hw_fit <- HoltWinters(ts_data)
     hw_forecast <- forecast(hw_fit, h = 14)
     
-    # Create forecast dataframe
+    # Create forecast dataframe with weekday filter
+    forecast_dates <- seq(max(.x$date) + 1, by = "day", length.out = 14)
+    forecast_dates <- forecast_dates[weekdays(forecast_dates) != "Sunday"]
+    
     data.frame(
-      date = seq(max(.x$date) + 1, by = "day", length.out = 14),
-      forecast = as.numeric(hw_forecast$mean),
-      lower_95 = as.numeric(hw_forecast$lower[,2]),
-      upper_95 = as.numeric(hw_forecast$upper[,2])
+      date = forecast_dates,
+      forecast = as.numeric(hw_forecast$mean)[1:length(forecast_dates)],
+      lower_95 = as.numeric(hw_forecast$lower[,2])[1:length(forecast_dates)],
+      upper_95 = as.numeric(hw_forecast$upper[,2])[1:length(forecast_dates)]
     )
   })
 
-# Create enhanced forecast visualization with linked visibility
+# Create enhanced forecast visualization
 forecast_plot <- plot_ly() %>%
-  # Add historical data lines
   add_lines(data = monthly_data, 
            x = ~date, 
            y = ~price,
@@ -372,7 +483,6 @@ forecast_plot <- plot_ly() %>%
              "\nValue:", round(price, 2)
            ),
            hoverinfo = "text") %>%
-  # Add forecast confidence intervals
   add_ribbons(data = forecasts,
              x = ~date,
              ymin = ~lower_95,
@@ -389,7 +499,6 @@ forecast_plot <- plot_ly() %>%
                "\nRange:", round(lower_95, 2), "to", round(upper_95, 2)
              ),
              hoverinfo = "text") %>%
-  # Add forecast lines
   add_lines(data = forecasts,
            x = ~date,
            y = ~forecast,
@@ -407,9 +516,9 @@ forecast_plot <- plot_ly() %>%
   layout(
     title = list(
       text = paste0(
-        "Market Crystal Ball: Next 14 Days",
+        "Market Crystal Ball: Next Two Weeks (Excluding Sundays)",
         "<br>",
-        "<sup>Click on market names to see each market's potential future path! 🔮</sup>"
+        "<sup>Double-Click on market names to see each market's potential future path! 🔮</sup>"
       ),
       font = list(size = 24, color = "black"),
       y = 0.95
@@ -467,68 +576,487 @@ forecast_plot <- plot_ly() %>%
 
 forecast_plot
 ```
-
 ### Understanding the Crystal Ball View 🔮
 
 The crystal ball shows three key elements for each market:
 - Solid Line: The actual market journey so far
-- Dashed Line: The most likely path ahead
+- Dashed Line: The most likely path ahead (excluding Sundays)
 - Shaded Area: The range of possible movements
 
-When you click on a market name in the legend, you'll see:
+When you double-click on a market name in the legend, you'll see:
 1. Where that market has been (solid line)
 2. Where it might go (dashed line)
 3. The range of possibilities (shaded area)
 
 This helps clear away the fog and focus on one market at a time!
 
-```{r trading_patterns}
-# Calculate overall market patterns
-overall_day_summary <- monthly_data %>%
+## The Market's Weekly Rhythm Guide 📊
+
+### Last Month's Weekly Patterns
+```{r monthly_trading_patterns}
+# Calculate monthly patterns (excluding weekends)
+monthly_day_summary <- monthly_data %>%
+  mutate(
+    day_of_week = weekdays(date),
+    is_up_day = returns > 0,
+    avg_move = mean(returns, na.rm = TRUE)
+  ) %>%
+  filter(day_of_week %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")) %>%
+  group_by(day_of_week) %>%
+  summarize(
+    success_rate = mean(is_up_day, na.rm = TRUE) * 100,
+    average_move = mean(returns, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    success_rate_fmt = sprintf("%.1f", success_rate),
+    average_move_fmt = sprintf("%.2f", average_move),
+    day_rating = case_when(
+      success_rate >= 70 ~ "🌟 Exceptional Day",
+      success_rate >= 60 ~ "⭐ Very Strong Day",
+      success_rate >= 55 ~ "✨ Strong Day",
+      success_rate >= 50 ~ "💫 Positive Day",
+      success_rate >= 45 ~ "🌙 Neutral Day",
+      success_rate >= 40 ~ "⚡ Challenging Day",
+      success_rate >= 35 ~ "🌩️ Difficult Day",
+      TRUE ~ "⛈️ Very Challenging Day"
+    ),
+    description = case_when(
+      success_rate >= 70 ~ "Outstanding performance, highly reliable gains",
+      success_rate >= 60 ~ "Very strong historical performance",
+      success_rate >= 55 ~ "Consistently positive outcomes",
+      success_rate >= 50 ~ "Generally favorable conditions",
+      success_rate >= 45 ~ "Mixed performance, slight tendency down",
+      success_rate >= 40 ~ "More challenging conditions prevail",
+      success_rate >= 35 ~ "Historically difficult trading day",
+      TRUE ~ "Significant historical headwinds"
+    ),
+    mood_color = case_when(
+      success_rate >= 70 ~ "#006400",   # Dark green
+      success_rate >= 60 ~ "#4CAF50",   # Medium green
+      success_rate >= 55 ~ "#8BC34A",   # Light green
+      success_rate >= 50 ~ "#CDDC39",   # Lime
+      success_rate >= 45 ~ "#FFC107",   # Amber
+      success_rate >= 40 ~ "#FF9800",   # Orange
+      success_rate >= 35 ~ "#FF5722",   # Deep orange
+      TRUE ~ "#B71C1C"                  # Dark red
+    )
+  ) %>%
+  arrange(match(day_of_week, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")))
+
+# Create monthly table
+monthly_table <- monthly_day_summary %>%
+  select(day_of_week, success_rate_fmt, average_move_fmt, day_rating, description) %>%
+  rename(
+    "Day of Week" = day_of_week,
+    "Success Rate %" = success_rate_fmt,
+    "Avg Return %" = average_move_fmt,
+    "Market Mood" = day_rating,
+    "Historical Pattern" = description
+  )
+
+# Apply row-specific styling
+table_styled <- kable(monthly_table,
+    format = "html",
+    escape = FALSE,
+    align = c('l', 'r', 'r', 'c', 'l'),
+    caption = "Last Month's Weekly Rhythm"
+  ) %>% 
+  kable_styling() %>%
+  row_spec(0, background = "#FFE5B4", color = "black")
+
+# Apply individual row colors
+for(i in 1:nrow(monthly_day_summary)) {
+  table_styled <- table_styled %>%
+    row_spec(i, background = monthly_day_summary$mood_color[i], color = "black")
+}
+
+table_styled
+```
+
+### This Year's Weekly Patterns
+```{r yearly_trading_patterns}
+# Calculate yearly patterns (excluding weekends)
+yearly_day_summary <- yearly_data %>%
   mutate(
     day_of_week = weekdays(date),
     is_up_day = returns > 0
   ) %>%
+  filter(day_of_week %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")) %>%
   group_by(day_of_week) %>%
   summarize(
-    success_rate = sprintf("%.1f", mean(is_up_day, na.rm = TRUE) * 100),
-    average_move = sprintf("%.1f", mean(returns, na.rm = TRUE)),
+    success_rate = mean(is_up_day, na.rm = TRUE) * 100,
+    average_move = mean(returns, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    success_rate_fmt = sprintf("%.1f", success_rate),
+    average_move_fmt = sprintf("%.2f", average_move),
     day_rating = case_when(
-      as.numeric(success_rate) >= 60 ~ "🌟 Strong Day",
-      as.numeric(success_rate) >= 50 ~ "⭐ Good Day",
-      TRUE ~ "✨ Challenging Day"
+      success_rate >= 70 ~ "🌟 Exceptional Day",
+      success_rate >= 60 ~ "⭐ Very Strong Day",
+      success_rate >= 55 ~ "✨ Strong Day",
+      success_rate >= 50 ~ "💫 Positive Day",
+      success_rate >= 45 ~ "🌙 Neutral Day",
+      success_rate >= 40 ~ "⚡ Challenging Day",
+      success_rate >= 35 ~ "🌩️ Difficult Day",
+      TRUE ~ "⛈️ Very Challenging Day"
     ),
     description = case_when(
-      as.numeric(success_rate) >= 60 ~ "Markets often shine brightest!",
-      as.numeric(success_rate) >= 50 ~ "A generally pleasant market day",
-      TRUE ~ "Markets might need their morning coffee ☕"
+      success_rate >= 70 ~ "Historically exceptional performance",
+      success_rate >= 60 ~ "Very strong year-long pattern",
+      success_rate >= 55 ~ "Consistently positive yearly trend",
+      success_rate >= 50 ~ "Generally favorable yearly pattern",
+      success_rate >= 45 ~ "Mixed yearly performance",
+      success_rate >= 40 ~ "Challenging yearly pattern",
+      success_rate >= 35 ~ "Historically difficult day this year",
+      TRUE ~ "Significant yearly challenges"
+    ),
+    mood_color = case_when(
+      success_rate >= 70 ~ "#006400",   # Dark green
+      success_rate >= 60 ~ "#4CAF50",   # Medium green
+      success_rate >= 55 ~ "#8BC34A",   # Light green
+      success_rate >= 50 ~ "#CDDC39",   # Lime
+      success_rate >= 45 ~ "#FFC107",   # Amber
+      success_rate >= 40 ~ "#FF9800",   # Orange
+      success_rate >= 35 ~ "#FF5722",   # Deep orange
+      TRUE ~ "#B71C1C"                  # Dark red
     )
   ) %>%
-  arrange(desc(as.numeric(success_rate)))
+  arrange(match(day_of_week, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")))
 
-# Create weekly rhythm summary
-overall_day_summary %>%
-  select(day_of_week, success_rate, day_rating, description) %>%
+# Create yearly table
+yearly_table <- yearly_day_summary %>%
+  select(day_of_week, success_rate_fmt, average_move_fmt, day_rating, description) %>%
   rename(
     "Day of Week" = day_of_week,
-    "Success Rate %" = success_rate,
+    "Success Rate %" = success_rate_fmt,
+    "Avg Return %" = average_move_fmt,
     "Market Mood" = day_rating,
-    "What to Expect" = description
-  ) %>%
-  kable(
+    "Historical Pattern" = description
+  )
+
+# Apply row-specific styling
+table_styled <- kable(yearly_table,
     format = "html",
     escape = FALSE,
-    align = c('l', 'r', 'c', 'l'),
-    caption = "The Market's Weekly Rhythm Guide"
+    align = c('l', 'r', 'r', 'c', 'l'),
+    caption = "This Year's Weekly Rhythm"
+  ) %>% 
+  kable_styling() %>%
+  row_spec(0, background = "#FFE5B4", color = "black")
+
+# Apply individual row colors
+for(i in 1:nrow(yearly_day_summary)) {
+  table_styled <- table_styled %>%
+    row_spec(i, background = yearly_day_summary$mood_color[i], color = "black")
+}
+
+table_styled
+```
+
+#### Understanding Your Weekly Rhythm Guide 📊
+
+The Weekly Rhythm Guide analyzes how markets typically perform on each trading day. Here's what the indicators mean:
+
+**Success Rate %**:
+- 70%+ (🌟): Exceptionally strong historical performance
+- 60-70% (⭐): Very reliable positive performance
+- 55-60% (✨): Consistently good performance
+- 50-55% (💫): Slightly positive tendency
+- 45-50% (🌙): Neutral performance
+- 40-45% (⚡): Challenging conditions
+- 35-40% (🌩️): Historically difficult
+- Below 35% (⛈️): Significant historical challenges
+
+**Average Return %**: Shows typical magnitude of price movements for each day
+
+**Market Mood**: Quick visual indicator of historical day performance
+
+**Historical Pattern**: Detailed insight into typical market behavior for that day
+
+
+## Summary Cards 📋
+
+### Monthly Summary Card
+```{r monthly_summary_card}
+# Calculate monthly metrics with proper grouping
+monthly_summary <- monthly_data %>%
+  # First calculate individual market returns using normalized prices
+  group_by(index_name) %>%
+  summarize(
+    monthly_return = ((last(norm_price) / first(norm_price)) - 1) * 100,  # using norm_price instead of price
+    avg_daily_vol = sd(returns, na.rm = TRUE)
   ) %>%
+  ungroup() %>%
+  # Then calculate overall statistics
+  summarize(
+    total_markets = n(),
+    growing_markets = sum(monthly_return > 0, na.rm = TRUE),
+    strong_growth_markets = sum(monthly_return > 3, na.rm = TRUE),
+    avg_return = mean(monthly_return, na.rm = TRUE),
+    volatility = mean(avg_daily_vol, na.rm = TRUE)
+  ) %>%
+  mutate(
+    market_mood = case_when(
+      avg_return > 5 ~ "📈 Exceptional Growth",
+      avg_return > 3 ~ "↗️ Strong Momentum",
+      avg_return > 1 ~ "📊 Steady Progress",
+      avg_return > 0 ~ "➡️ Modest Gains",
+      avg_return > -1 ~ "↔️ Holding Pattern",
+      avg_return > -3 ~ "↘️ Minor Weakness",
+      avg_return > -5 ~ "📉 Significant Pressure",
+      TRUE ~ "⚠️ Major Challenges"
+    ),
+    stability = case_when(
+      volatility < 0.5 ~ "🏆 Exceptionally Calm",
+      volatility < 1.0 ~ "🌟 Very Stable",
+      volatility < 1.5 ~ "⭐ Stable",
+      volatility < 2.0 ~ "💫 Moderate Movement",
+      volatility < 2.5 ~ "✨ Active Markets",
+      volatility < 3.0 ~ "🌊 High Activity",
+      TRUE ~ "🌪️ Turbulent Markets"
+    ),
+    mood_colors = case_when(
+      avg_return > 5 ~ "#006400",   # Dark green
+      avg_return > 3 ~ "#4CAF50",   # Medium green
+      avg_return > 1 ~ "#8BC34A",   # Light green
+      avg_return > 0 ~ "#CDDC39",   # Lime
+      avg_return > -1 ~ "#FFC107",  # Amber
+      avg_return > -3 ~ "#FF9800",  # Orange
+      avg_return > -5 ~ "#FF5722",  # Deep orange
+      TRUE ~ "#B71C1C"             # Dark red
+    ),
+    volatility_colors = case_when(
+      volatility < 0.5 ~ "#006400",  # Dark green
+      volatility < 1.0 ~ "#4CAF50",  # Medium green
+      volatility < 1.5 ~ "#8BC34A",  # Light green
+      volatility < 2.0 ~ "#CDDC39",  # Lime
+      volatility < 2.5 ~ "#FFC107",  # Amber
+      volatility < 3.0 ~ "#FF9800",  # Orange
+      TRUE ~ "#F44336"               # Red
+    )
+  )
+
+# Create monthly summary table with color coding
+monthly_table <- data.frame(
+  Metric = c(
+    "Markets Tracked",
+    "Growing Markets",
+    "Strong Growth Markets (>3%)",
+    "Average Monthly Return",
+    "Market Mood",
+    "Volatility Level",
+    "Month's Story"
+  ),
+  Value = c(
+    as.character(monthly_summary$total_markets),
+    sprintf("%d (%.1f%%)", monthly_summary$growing_markets, 
+            monthly_summary$growing_markets/monthly_summary$total_markets*100),
+    sprintf("%d (%.1f%%)", monthly_summary$strong_growth_markets,
+            monthly_summary$strong_growth_markets/monthly_summary$total_markets*100),
+    sprintf("%.2f%%", monthly_summary$avg_return),
+    monthly_summary$market_mood,
+    monthly_summary$stability,
+    paste0(ifelse(monthly_summary$avg_return > 0, "🎯 ", "🎲 "),
+           case_when(
+             monthly_summary$avg_return > 5 ~ "Remarkable Monthly Surge",
+             monthly_summary$avg_return > 3 ~ "Strong Monthly Advance",
+             monthly_summary$avg_return > 1 ~ "Solid Monthly Progress",
+             monthly_summary$avg_return > 0 ~ "Modest Monthly Gains",
+             monthly_summary$avg_return > -1 ~ "Monthly Consolidation",
+             monthly_summary$avg_return > -3 ~ "Monthly Adjustment",
+             monthly_summary$avg_return > -5 ~ "Monthly Pressure",
+             TRUE ~ "Monthly Recovery Mode"
+           ))
+  )
+)
+
+# Create the styled monthly table
+table_styled <- kable(monthly_table,
+    format = "html",
+    escape = FALSE,
+    align = c('l', 'l'),
+    caption = "This Month at a Glance"
+  ) %>% 
   kable_styling() %>%
   row_spec(0, background = "#FFE5B4", color = "black") %>%
-  row_spec(1:nrow(overall_day_summary), 
-          color = "black",
-          background = "#F0F8FF") %>%
-  row_spec(1, background = "#E8F8E8") %>%
-  row_spec(nrow(overall_day_summary), background = "#FFE8E8")
+  row_spec(1, background = "#F0F8FF") %>%
+  row_spec(2:3, background = ifelse(monthly_summary$avg_return > 0, "#E8F8E8", "#FFF0F0")) %>%
+  row_spec(4:5, background = monthly_summary$mood_colors) %>%
+  row_spec(6, background = monthly_summary$volatility_colors) %>%
+  row_spec(7, background = monthly_summary$mood_colors)
+
+table_styled
 ```
+
+### Yearly Summary Card
+```{r yearly_summary_card}
+# Calculate yearly metrics with proper grouping
+yearly_summary <- yearly_data %>%
+  # First calculate individual market returns using normalized prices
+  group_by(index_name) %>%
+  summarize(
+    ytd_return = ((last(norm_price) / first(norm_price)) - 1) * 100,  # using norm_price instead of price
+    avg_daily_vol = sd(returns, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  # Then calculate overall statistics
+  summarize(
+    total_markets = n(),
+    growing_markets = sum(ytd_return > 0, na.rm = TRUE),
+    strong_growth_markets = sum(ytd_return > 10, na.rm = TRUE),
+    avg_ytd_return = mean(ytd_return, na.rm = TRUE),
+    yearly_volatility = mean(avg_daily_vol, na.rm = TRUE)
+  ) %>%
+  mutate(
+    market_mood = case_when(
+      avg_ytd_return > 20 ~ "📈 Bull Market Leader",
+      avg_ytd_return > 15 ~ "↗️ Strong Bull Run",
+      avg_ytd_return > 10 ~ "📊 Solid Uptrend",
+      avg_ytd_return > 5 ~ "➡️ Positive Trend",
+      avg_ytd_return > 0 ~ "↔️ Stable Markets",
+      avg_ytd_return > -5 ~ "↘️ Minor Correction",
+      avg_ytd_return > -10 ~ "📉 Correction Phase",
+      avg_ytd_return > -15 ~ "⚠️ Deep Correction",
+      TRUE ~ "🔄 Bear Market Territory"
+    ),
+    stability = case_when(
+      yearly_volatility < 0.5 ~ "🏆 Rock Solid Year",
+      yearly_volatility < 1.0 ~ "🌟 Very Stable Year",
+      yearly_volatility < 1.5 ~ "⭐ Stable Year",
+      yearly_volatility < 2.0 ~ "💫 Moderate Year",
+      yearly_volatility < 2.5 ~ "✨ Active Year",
+      yearly_volatility < 3.0 ~ "🌊 Volatile Year",
+      TRUE ~ "🌪️ Highly Volatile Year"
+    ),
+    mood_colors = case_when(
+      avg_ytd_return > 20 ~ "#006400",  # Dark green
+      avg_ytd_return > 15 ~ "#4CAF50",  # Medium green
+      avg_ytd_return > 10 ~ "#8BC34A",  # Light green
+      avg_ytd_return > 5 ~ "#CDDC39",   # Lime
+      avg_ytd_return > 0 ~ "#FFC107",   # Amber
+      avg_ytd_return > -5 ~ "#FF9800",  # Orange
+      avg_ytd_return > -10 ~ "#FF5722", # Deep orange
+      avg_ytd_return > -15 ~ "#F44336", # Red
+      TRUE ~ "#B71C1C"                  # Dark red
+    ),
+    volatility_colors = case_when(
+      yearly_volatility < 0.5 ~ "#006400",  # Dark green
+      yearly_volatility < 1.0 ~ "#4CAF50",  # Medium green
+      yearly_volatility < 1.5 ~ "#8BC34A",  # Light green
+      yearly_volatility < 2.0 ~ "#CDDC39",  # Lime
+      yearly_volatility < 2.5 ~ "#FFC107",  # Amber
+      yearly_volatility < 3.0 ~ "#FF9800",  # Orange
+      TRUE ~ "#F44336"                      # Red
+    )
+  )
+
+# Create yearly summary table
+yearly_table <- data.frame(
+  Metric = c(
+    "Markets Tracked",
+    "Growing Markets",
+    "Strong Growth Markets (>10%)",
+    "Average YTD Return",
+    "Market Mood",
+    "Volatility Level",
+    "Year's Story"
+  ),
+  Value = c(
+    as.character(yearly_summary$total_markets),
+    sprintf("%d (%.1f%%)", yearly_summary$growing_markets, 
+            yearly_summary$growing_markets/yearly_summary$total_markets*100),
+    sprintf("%d (%.1f%%)", yearly_summary$strong_growth_markets,
+            yearly_summary$strong_growth_markets/yearly_summary$total_markets*100),
+    sprintf("%.2f%%", yearly_summary$avg_ytd_return),
+    yearly_summary$market_mood,
+    yearly_summary$stability,
+    paste0(ifelse(yearly_summary$avg_ytd_return > 0, "🎯 ", "🎲 "),
+           case_when(
+             yearly_summary$avg_ytd_return > 20 ~ "Exceptional Bull Market",
+             yearly_summary$avg_ytd_return > 15 ~ "Strong Bull Run",
+             yearly_summary$avg_ytd_return > 10 ~ "Solid Year of Gains",
+             yearly_summary$avg_ytd_return > 5 ~ "Positive Year",
+             yearly_summary$avg_ytd_return > 0 ~ "Stable Progress",
+             yearly_summary$avg_ytd_return > -5 ~ "Minor Correction Year",
+             yearly_summary$avg_ytd_return > -10 ~ "Correction Territory",
+             yearly_summary$avg_ytd_return > -15 ~ "Significant Correction",
+             TRUE ~ "Bear Market Navigation"
+           ))
+  )
+)
+
+# Create the styled yearly table
+table_styled <- kable(yearly_table,
+    format = "html",
+    escape = FALSE,
+    align = c('l', 'l'),
+    caption = "This Year at a Glance"
+  ) %>% 
+  kable_styling() %>%
+  row_spec(0, background = "#FFE5B4", color = "black") %>%
+  row_spec(1, background = "#F0F8FF") %>%
+  row_spec(2:3, background = ifelse(yearly_summary$avg_ytd_return > 0, "#E8F8E8", "#FFF0F0")) %>%
+  row_spec(4:5, background = yearly_summary$mood_colors) %>%
+  row_spec(6, background = yearly_summary$volatility_colors) %>%
+  row_spec(7, background = yearly_summary$mood_colors)
+
+table_styled
+```
+
+#### Understanding Your Summary Cards 📋
+
+The Summary Cards provide a comprehensive view of market performance across different timeframes:
+
+**Key Metrics**:
+- Markets Tracked: Total markets in analysis
+- Growing Markets: Number and percentage showing positive returns
+- Strong Growth Markets: Exceptional performers (>3% monthly, >10% yearly)
+- Average Return: Mean return across all markets
+
+**Market Mood Scale**:
+Monthly:
+- 📈 Exceptional Growth (>5%)
+- ↗️ Strong Momentum (3-5%)
+- 📊 Steady Progress (1-3%)
+- ➡️ Modest Gains (0-1%)
+- ↔️ Holding Pattern (-1-0%)
+- ↘️ Minor Weakness (-3 to -1%)
+- 📉 Significant Pressure (-5 to -3%)
+- ⚠️ Major Challenges (<-5%)
+
+Yearly:
+- 📈 Bull Market Leader (>20%)
+- ↗️ Strong Bull Run (15-20%)
+- 📊 Solid Uptrend (10-15%)
+- ➡️ Positive Trend (5-10%)
+- ↔️ Stable Markets (0-5%)
+- ↘️ Minor Correction (-5-0%)
+- 📉 Correction Phase (-10 to -5%)
+- ⚠️ Deep Correction (-15 to -10%)
+- 🔄 Bear Market (<-15%)
+
+**Volatility Levels**:
+- 🏆 Exceptionally Calm: Minimal fluctuations
+- 🌟 Very Stable: Small, orderly movements
+- ⭐ Stable: Normal market activity
+- 💫 Moderate: Typical volatility
+- ✨ Active: Increased movement
+- 🌊 High: Notable volatility
+- 🌪️ Turbulent: Significant swings
+
+## Report Information ℹ️
+<div class="date-stamp">
+- Report Generated: `r format(Sys.time(), "%B %d, %Y at %H:%M %Z")`
+- Data Through: `r format(max(monthly_data$date), "%B %d, %Y")`
+- Next Update: `r format(ceiling_date(Sys.Date(), "month"), "%B %d, %Y")`
+</div>
+
+<div class="helpful-note">
+Remember: This report is like a weather forecast for markets - it helps you understand what's currently happening (last month and a Holt-Winters prediction of the coming two weeks), but doesn't predict exactly what will happen next which is from today and forward. Always consult with financial professionals for investment advice and please be aware of the current financial situation in your country. Remember that the only one responsible for your savings is you, do your best!
+</div>
+
 ```{css, echo=FALSE}
 /* Global text color settings */
 body, p, h1, h2, h3, h4, h5, h6, th, td, li, .table, .tocify {
@@ -643,135 +1171,5 @@ h2::after {
 
 div.main-container {  
   max-width: 95vw;
-
-
 }
-
 ```
-
-## Market Health Review 🏥
-```{r health_check}
-# Calculate market health metrics
-health_check <- monthly_data %>%
-  group_by(region, index_name) %>%
-  summarize(
-    trend_emoji = case_when(
-      mean(tail(returns, 5)) > 1 ~ "💚",
-      mean(tail(returns, 5)) > 0 ~ "💛",
-      mean(tail(returns, 5)) > -1 ~ "🤍",
-      TRUE ~ "❤️"
-    ),
-    trend_text = case_when(
-      mean(tail(returns, 5)) > 1 ~ "Strong Upward Movement",
-      mean(tail(returns, 5)) > 0 ~ "Gentle Upward Movement",
-      mean(tail(returns, 5)) > -1 ~ "Steady Movement",
-      TRUE ~ "Taking a Break"
-    ),
-    stability_emoji = case_when(
-      sd(returns) < 1 ~ "🌟🌟🌟",
-      sd(returns) < 2 ~ "🌟🌟",
-      TRUE ~ "🌟"
-    ),
-    stability_text = case_when(
-      sd(returns) < 1 ~ "Very Stable",
-      sd(returns) < 2 ~ "Moderately Stable",
-      TRUE ~ "More Variable"
-    ),
-    monthly_trend = sprintf("%.1f%%", sum(returns > 0) / n() * 100)
-  )
-
-# Create health indicators table
-health_check %>%
-  select(
-    region, index_name, 
-    trend_emoji, trend_text,
-    stability_emoji, stability_text,
-    monthly_trend
-  ) %>%
-  kable(
-    format = "html",
-    escape = FALSE,
-    col.names = c("Region", "Market", 
-                 "Current Health", "Status",
-                 "Stability", "Movement Pattern",
-                 "Positive Days"),
-    align = c('l', 'l', 'c', 'l', 'c', 'l', 'r'),
-    caption = "Market Health Indicators"
-  ) %>%
-  kable_styling() %>%
-  row_spec(0, background = "#FFE5B4", color = "black") %>%
-  row_spec(1:nrow(health_check), 
-          color = "black",
-          background = "#F0F8FF")
-```
-
-## Monthly Summary Card 📋
-```{r summary_card}
-# Calculate overall metrics
-monthly_summary <- monthly_data %>%
-  summarize(
-    total_markets = n_distinct(index_name),
-    growing_markets = sum(last(returns) > 0, na.rm = TRUE),
-    avg_return = mean(returns, na.rm = TRUE),
-    volatility = sd(returns, na.rm = TRUE)
-  ) %>%
-  mutate(
-    market_mood = case_when(
-      avg_return > 1 ~ "📈 Growing Together",
-      avg_return > 0 ~ "↗️ Gentle Progress",
-      avg_return > -1 ~ "↔️ Finding Balance",
-      TRUE ~ "🔄 Reset and Rebuild"
-    ),
-    stability = case_when(
-      volatility < 1 ~ "🌟 Very Stable",
-      volatility < 2 ~ "⭐ Moderately Stable",
-      TRUE ~ "✨ More Dynamic"
-    )
-  )
-
-# Create summary display
-data.frame(
-  Metric = c(
-    "Markets Tracked",
-    "Growing Markets",
-    "Overall Mood",
-    "Market Stability",
-    "Month's Story"
-  ),
-  Value = c(
-    as.character(monthly_summary$total_markets),
-    as.character(monthly_summary$growing_markets),
-    monthly_summary$market_mood,
-    monthly_summary$stability,
-    paste0(ifelse(monthly_summary$avg_return > 0, "🎯 ", "🎲 "),
-           case_when(
-             monthly_summary$avg_return > 1 ~ "Strength in Unity",
-             monthly_summary$avg_return > 0 ~ "Steady Progress",
-             monthly_summary$avg_return > -1 ~ "Navigating Change",
-             TRUE ~ "Building Resilience"
-           ))
-  )
-) %>%
-  kable(
-    format = "html",
-    escape = FALSE,
-    align = c('l', 'l'),
-    caption = "This Month at a Glance"
-  ) %>%
-  kable_styling() %>%
-  row_spec(0, background = "#FFE5B4", color = "black") %>%
-  row_spec(1:5, 
-          color = "black",
-          background = "#F0F8FF")
-```
-
-## Report Information ℹ️
-<div class="date-stamp">
-- Report Generated: `r format(Sys.time(), "%B %d, %Y at %H:%M %Z")`
-- Data Through: `r format(max(monthly_data$date), "%B %d, %Y")`
-- Next Update: `r format(ceiling_date(Sys.Date(), "month"), "%B %d, %Y")`
-</div>
-
-<div class="helpful-note">
-Remember: This report is like a weather forecast for markets - it helps you understand what's currently happening (last month and a Holt-Winters prediction of the coming two months), but doesn't predict exactly what will happen next which is from today and forward. Always consult with financial professionals for investment advice and please be aware of the current financial situation in your country. Remember that the only one responsible for your savings is you, do your best!
-</div>
