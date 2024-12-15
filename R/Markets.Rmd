@@ -1098,19 +1098,26 @@ body, p, h1, h2, h3, h4, h5, h6, th, td, li, .table, .tocify {
   border-radius: 12px;
 }
 
-/* Plot styling */
+/* Plot styling - adjusted for consistent margins */
 .plotly {
-  margin: 30px 0;
+  margin: 30px 0 !important;  /* Changed to match other elements */
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   transition: transform 0.2s ease;
   background: white;
   padding: 15px;
+  width: 100% !important;  /* Full width to match other elements */
+  max-width: 100% !important;  /* Ensure it doesn't exceed container */
 }
 
 .plotly:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+/* Plot container alignment */
+.plot-container.plotly {
+  margin: 0 !important;  /* Remove automatic centering */
 }
 
 /* Table styling */
@@ -1168,7 +1175,15 @@ h2::after {
   border: 1px solid #eee;
 }
 
+/* Container width control */
 div.main-container {  
   max-width: 95vw;
+}
+
+/* Ensure all content has consistent width */
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 ```
