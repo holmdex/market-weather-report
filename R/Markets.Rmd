@@ -353,7 +353,7 @@ monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price,
     text = ~paste(
       index_name,
       "\nDate: ", format(date, "%b %d"),
-      "\nValue: ", round(norm_price, 1)
+      "\nValue: ", round(norm_price, 1), "%"
     ),
     hoverinfo = "text"
   ) %>%
@@ -364,36 +364,38 @@ monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price,
         "<br>",
         "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
       ),
-      font = list(size = 24, color = "black"),
+      font = list(size = 20, color = "black"),
       y = 0.95
     ),
     plot_bgcolor = "#F7FBFF",
     paper_bgcolor = "#F7FBFF",
     yaxis = list(
       title = "Value (Starting Point = 100)",
-      tickfont = list(size = 12, color = "black"),
+      tickfont = list(size = 11, color = "black"),
+      titlefont = list(size = 12),
       gridcolor = "#E1E5EA",
       fixedrange = FALSE,
       automargin = TRUE
     ),
     xaxis = list(
       title = "Date",
-      tickfont = list(size = 12, color = "black"),
+      tickfont = list(size = 11, color = "black"),
+      titlefont = list(size = 12),
       gridcolor = "#E1E5EA",
       automargin = TRUE
     ),
-    margin = list(l = 80, r = 80, t = 100, b = 80),
-    height = 600,
+    margin = list(l = 60, r = 60, t = 80, b = 100),
+    height = 550,
     showlegend = TRUE,
     legend = list(
       orientation = "h",
-      y = -0.2,
+      y = -0.25,
       x = 0.5,
       xanchor = "center",
       bgcolor = "rgba(255, 255, 255, 0.9)",
       bordercolor = "#E1E5EA",
       borderwidth = 1,
-      font = list(color = "black")
+      font = list(size = 11, color = "black")
     )
   )
 
@@ -410,7 +412,7 @@ yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price,
     text = ~paste(
       index_name,
       "\nDate: ", format(date, "%b %d"),
-      "\nValue: ", round(norm_price, 1)
+      "\nValue: ", round(norm_price, 1), "%"
     ),
     hoverinfo = "text"
   ) %>%
@@ -421,36 +423,38 @@ yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price,
         "<br>",
         "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
       ),
-      font = list(size = 24, color = "black"),
+      font = list(size = 20, color = "black"),
       y = 0.95
     ),
     plot_bgcolor = "#F7FBFF",
     paper_bgcolor = "#F7FBFF",
     yaxis = list(
       title = "Value (Starting Point = 100)",
-      tickfont = list(size = 12, color = "black"),
+      tickfont = list(size = 11, color = "black"),
+      titlefont = list(size = 12),
       gridcolor = "#E1E5EA",
       fixedrange = FALSE,
       automargin = TRUE
     ),
     xaxis = list(
       title = "Date",
-      tickfont = list(size = 12, color = "black"),
+      tickfont = list(size = 11, color = "black"),
+      titlefont = list(size = 12),
       gridcolor = "#E1E5EA",
       automargin = TRUE
     ),
-    margin = list(l = 80, r = 80, t = 100, b = 80),
-    height = 600,
+    margin = list(l = 60, r = 60, t = 80, b = 100),
+    height = 550,
     showlegend = TRUE,
     legend = list(
       orientation = "h",
-      y = -0.2,
+      y = -0.25,
       x = 0.5,
       xanchor = "center",
       bgcolor = "rgba(255, 255, 255, 0.9)",
       bordercolor = "#E1E5EA",
       borderwidth = 1,
-      font = list(color = "black")
+      font = list(size = 11, color = "black")
     )
   )
 
@@ -466,7 +470,7 @@ forecasts <- monthly_data %>%
   group_by(index_name) %>%
   group_modify(~{
     # Create time series for prediction
-    ts_data <- ts(.x$price, frequency = 7)
+    ts_data <- ts(.x$norm_price, frequency = 7)  # Changed to norm_price
     
     # Use Holt-Winters to make a forecast
     hw_fit <- HoltWinters(ts_data)
@@ -488,7 +492,7 @@ forecasts <- monthly_data %>%
 forecast_plot <- plot_ly() %>%
   add_lines(data = monthly_data, 
            x = ~date, 
-           y = ~price,
+           y = ~norm_price,
            color = ~index_name,
            colors = getOption("plotly.palette")(),
            name = ~index_name,
@@ -497,7 +501,7 @@ forecast_plot <- plot_ly() %>%
            text = ~paste(
              index_name,
              "\nDate:", format(date, "%b %d"),
-             "\nValue:", round(price, 2)
+             "\nValue:", round(norm_price, 1), "%"
            ),
            hoverinfo = "text") %>%
   add_ribbons(data = forecasts,
@@ -513,7 +517,7 @@ forecast_plot <- plot_ly() %>%
              text = ~paste(
                index_name,
                "\nDate:", format(date, "%b %d"),
-               "\nRange:", round(lower_95, 2), "to", round(upper_95, 2)
+               "\nRange:", round(lower_95, 1), "% to", round(upper_95, 1), "%"
              ),
              hoverinfo = "text") %>%
   add_lines(data = forecasts,
@@ -527,7 +531,7 @@ forecast_plot <- plot_ly() %>%
            text = ~paste(
              index_name,
              "\nDate:", format(date, "%b %d"),
-             "\nForecast:", round(forecast, 2)
+             "\nForecast:", round(forecast, 1), "%"
            ),
            hoverinfo = "text") %>%
   layout(
@@ -537,34 +541,37 @@ forecast_plot <- plot_ly() %>%
         "<br>",
         "<sup>Double-Click on market names to see each market's potential future path! 🔮</sup>"
       ),
-      font = list(size = 24, color = "black"),
+      font = list(size = 20, color = "black"),
       y = 0.95
     ),
     plot_bgcolor = "#F7FBFF",
     paper_bgcolor = "#F7FBFF",
     yaxis = list(
-      title = "Price Level",
+      title = "Value (Starting Point = 100)",
+      tickfont = list(size = 11, color = "black"),
+      titlefont = list(size = 12),
       gridcolor = "#E1E5EA",
-      tickfont = list(size = 12, color = "black"),
+      fixedrange = FALSE,
       automargin = TRUE
     ),
     xaxis = list(
       title = "Date",
+      tickfont = list(size = 11, color = "black"),
+      titlefont = list(size = 12),
       gridcolor = "#E1E5EA",
-      tickfont = list(size = 12, color = "black"),
       automargin = TRUE
     ),
-    margin = list(l = 80, r = 80, t = 100, b = 80),
-    height = 600,
+    margin = list(l = 60, r = 60, t = 80, b = 100),
+    height = 550,
     legend = list(
       orientation = "h",
-      y = -0.2,
+      y = -0.25,
       x = 0.5,
       xanchor = "center",
       bgcolor = "rgba(255, 255, 255, 0.9)",
       bordercolor = "#E1E5EA",
       borderwidth = 1,
-      font = list(color = "black")
+      font = list(size = 11, color = "black")
     ),
     shapes = list(
       list(
@@ -586,13 +593,14 @@ forecast_plot <- plot_ly() %>%
         showarrow = FALSE,
         bgcolor = "white",
         bordercolor = "#957DAD",
-        font = list(size = 14, color = "black")
+        font = list(size = 12, color = "black")
       )
     )
   )
 
 forecast_plot
 ```
+
 ### Understanding the Crystal Ball View 🔮
 
 The crystal ball shows three key elements for each market:
