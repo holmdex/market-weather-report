@@ -355,47 +355,70 @@ monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price,
       "\nDate: ", format(date, "%b %d"),
       "\nValue: ", round(norm_price, 1), "%"
     ),
-    hoverinfo = "text"
+    hoverinfo = "text",
+    line = list(width = 1.5)  # Thinner lines for better clarity
   ) %>%
   layout(
     title = list(
       text = paste0(
         "Monthly Market Performance (All Start at 100)",
         "<br>",
-        "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
+        "<sup style='font-size: 0.8em'>Double-Click on market names to focus on specific markets 🔍</sup>"
       ),
-      font = list(size = 20, color = "black"),
-      y = 0.95
+      font = list(size = 16, color = "black", family = "Arial"),
+      y = 0.98,
+      x = 0.5,
+      xanchor = "center"
     ),
-    plot_bgcolor = "#F7FBFF",
-    paper_bgcolor = "#F7FBFF",
+    plot_bgcolor = "#FAFAFA",  # Lighter background
+    paper_bgcolor = "#FAFAFA",
     yaxis = list(
-      title = "Value (Starting Point = 100)",
-      tickfont = list(size = 11, color = "black"),
-      titlefont = list(size = 12),
-      gridcolor = "#E1E5EA",
+      title = list(
+        text = "Value (Starting Point = 100)",
+        font = list(size = 12, color = "#2f2f2f")
+      ),
+      tickfont = list(size = 10, color = "#2f2f2f"),
+      gridcolor = "#E8E8E8",  # Lighter grid
       fixedrange = FALSE,
-      automargin = TRUE
+      automargin = TRUE,
+      tickformat = ".1f",
+      zerolinecolor = "#CCCCCC"  # Subtle zero line
     ),
     xaxis = list(
-      title = "Date",
-      tickfont = list(size = 11, color = "black"),
-      titlefont = list(size = 12),
-      gridcolor = "#E1E5EA",
-      automargin = TRUE
+      title = list(
+        text = "Date",
+        font = list(size = 12, color = "#2f2f2f")
+      ),
+      tickfont = list(size = 10, color = "#2f2f2f"),
+      gridcolor = "#E8E8E8",
+      automargin = TRUE,
+      zerolinecolor = "#CCCCCC"
     ),
-    margin = list(l = 60, r = 60, t = 80, b = 100),
-    height = 550,
+    margin = list(l = 60, r = 60, t = 90, b = 140),  # Adjusted margins
+    height = 800,
     showlegend = TRUE,
     legend = list(
       orientation = "h",
-      y = -0.25,
+      y = -0.28,
       x = 0.5,
       xanchor = "center",
-      bgcolor = "rgba(255, 255, 255, 0.9)",
-      bordercolor = "#E1E5EA",
+      yanchor = "top",
+      bgcolor = "rgba(255, 255, 255, 0.95)",
+      bordercolor = "#E0E0E0",
       borderwidth = 1,
-      font = list(size = 11, color = "black")
+      font = list(size = 10, color = "#2f2f2f", family = "Arial"),
+      itemsizing = "constant"  # Consistent legend item size
+    ),
+    hoverlabel = list(
+      font = list(size = 11, family = "Arial"),
+      bgcolor = "white",
+      bordercolor = "#E0E0E0",
+      namelength = -1  # Show full names
+    ),
+    modebar = list(
+      bgcolor = "transparent",
+      color = "#2f2f2f",
+      activecolor = "#1f77b4"
     )
   )
 
@@ -414,47 +437,70 @@ yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price,
       "\nDate: ", format(date, "%b %d"),
       "\nValue: ", round(norm_price, 1), "%"
     ),
-    hoverinfo = "text"
+    hoverinfo = "text",
+    line = list(width = 1.5)
   ) %>%
   layout(
     title = list(
       text = paste0(
         "Yearly Market Performance (All Start at 100)",
         "<br>",
-        "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
+        "<sup style='font-size: 0.8em'>Double-Click on market names to focus on specific markets 🔍</sup>"
       ),
-      font = list(size = 20, color = "black"),
-      y = 0.95
+      font = list(size = 16, color = "black", family = "Arial"),
+      y = 0.98,
+      x = 0.5,
+      xanchor = "center"
     ),
-    plot_bgcolor = "#F7FBFF",
-    paper_bgcolor = "#F7FBFF",
+    plot_bgcolor = "#FAFAFA",
+    paper_bgcolor = "#FAFAFA",
     yaxis = list(
-      title = "Value (Starting Point = 100)",
-      tickfont = list(size = 11, color = "black"),
-      titlefont = list(size = 12),
-      gridcolor = "#E1E5EA",
+      title = list(
+        text = "Value (Starting Point = 100)",
+        font = list(size = 12, color = "#2f2f2f")
+      ),
+      tickfont = list(size = 10, color = "#2f2f2f"),
+      gridcolor = "#E8E8E8",
       fixedrange = FALSE,
-      automargin = TRUE
+      automargin = TRUE,
+      tickformat = ".1f",
+      zerolinecolor = "#CCCCCC"
     ),
     xaxis = list(
-      title = "Date",
-      tickfont = list(size = 11, color = "black"),
-      titlefont = list(size = 12),
-      gridcolor = "#E1E5EA",
-      automargin = TRUE
+      title = list(
+        text = "Date",
+        font = list(size = 12, color = "#2f2f2f")
+      ),
+      tickfont = list(size = 10, color = "#2f2f2f"),
+      gridcolor = "#E8E8E8",
+      automargin = TRUE,
+      zerolinecolor = "#CCCCCC"
     ),
-    margin = list(l = 60, r = 60, t = 80, b = 100),
-    height = 550,
+    margin = list(l = 60, r = 60, t = 90, b = 140),
+    height = 800,
     showlegend = TRUE,
     legend = list(
       orientation = "h",
-      y = -0.25,
+      y = -0.28,
       x = 0.5,
       xanchor = "center",
-      bgcolor = "rgba(255, 255, 255, 0.9)",
-      bordercolor = "#E1E5EA",
+      yanchor = "top",
+      bgcolor = "rgba(255, 255, 255, 0.95)",
+      bordercolor = "#E0E0E0",
       borderwidth = 1,
-      font = list(size = 11, color = "black")
+      font = list(size = 10, color = "#2f2f2f", family = "Arial"),
+      itemsizing = "constant"
+    ),
+    hoverlabel = list(
+      font = list(size = 11, family = "Arial"),
+      bgcolor = "white",
+      bordercolor = "#E0E0E0",
+      namelength = -1
+    ),
+    modebar = list(
+      bgcolor = "transparent",
+      color = "#2f2f2f",
+      activecolor = "#1f77b4"
     )
   )
 
@@ -469,14 +515,10 @@ yearly_plot
 forecasts <- monthly_data %>%
   group_by(index_name) %>%
   group_modify(~{
-    # Create time series for prediction
-    ts_data <- ts(.x$norm_price, frequency = 7)  # Changed to norm_price
-    
-    # Use Holt-Winters to make a forecast
+    ts_data <- ts(.x$norm_price, frequency = 7)
     hw_fit <- HoltWinters(ts_data)
     hw_forecast <- forecast(hw_fit, h = 14)
     
-    # Create forecast dataframe with weekday filter
     forecast_dates <- seq(max(.x$date) + 1, by = "day", length.out = 14)
     forecast_dates <- forecast_dates[weekdays(forecast_dates) != "Sunday"]
     
@@ -497,7 +539,7 @@ forecast_plot <- plot_ly() %>%
            colors = getOption("plotly.palette")(),
            name = ~index_name,
            legendgroup = ~index_name,
-           line = list(width = 2),
+           line = list(width = 1.5),
            text = ~paste(
              index_name,
              "\nDate:", format(date, "%b %d"),
@@ -510,7 +552,7 @@ forecast_plot <- plot_ly() %>%
              ymax = ~upper_95,
              color = ~index_name,
              colors = getOption("plotly.palette")(),
-             opacity = 0.2,
+             opacity = 0.12,  # More subtle ribbons
              legendgroup = ~index_name,
              showlegend = FALSE,
              name = "Possible Range",
@@ -525,7 +567,7 @@ forecast_plot <- plot_ly() %>%
            y = ~forecast,
            color = ~index_name,
            colors = getOption("plotly.palette")(),
-           line = list(dash = 'dash'),
+           line = list(dash = 'dash', width = 1.25),  # Slightly thinner forecast lines
            legendgroup = ~index_name,
            showlegend = FALSE,
            text = ~paste(
@@ -539,39 +581,56 @@ forecast_plot <- plot_ly() %>%
       text = paste0(
         "Market Crystal Ball: Next Two Weeks",
         "<br>",
-        "<sup>Double-Click on market names to see each market's potential future path! 🔮</sup>"
+        "<sup style='font-size: 0.8em'>Double-Click on market names to focus on specific markets 🔮</sup>"
       ),
-      font = list(size = 20, color = "black"),
-      y = 0.95
+      font = list(size = 16, color = "black", family = "Arial"),
+      y = 0.98,
+      x = 0.5,
+      xanchor = "center"
     ),
-    plot_bgcolor = "#F7FBFF",
-    paper_bgcolor = "#F7FBFF",
+    plot_bgcolor = "#FAFAFA",
+    paper_bgcolor = "#FAFAFA",
     yaxis = list(
-      title = "Value (Starting Point = 100)",
-      tickfont = list(size = 11, color = "black"),
-      titlefont = list(size = 12),
-      gridcolor = "#E1E5EA",
+      title = list(
+        text = "Value (Starting Point = 100)",
+        font = list(size = 12, color = "#2f2f2f")
+      ),
+      tickfont = list(size = 10, color = "#2f2f2f"),
+      gridcolor = "#E8E8E8",
       fixedrange = FALSE,
-      automargin = TRUE
+      automargin = TRUE,
+      tickformat = ".1f",
+      zerolinecolor = "#CCCCCC"
     ),
     xaxis = list(
-      title = "Date",
-      tickfont = list(size = 11, color = "black"),
-      titlefont = list(size = 12),
-      gridcolor = "#E1E5EA",
-      automargin = TRUE
+      title = list(
+        text = "Date",
+        font = list(size = 12, color = "#2f2f2f")
+      ),
+      tickfont = list(size = 10, color = "#2f2f2f"),
+      gridcolor = "#E8E8E8",
+      automargin = TRUE,
+      zerolinecolor = "#CCCCCC"
     ),
-    margin = list(l = 60, r = 60, t = 80, b = 100),
-    height = 550,
+    margin = list(l = 60, r = 60, t = 90, b = 140),
+    height = 800,
     legend = list(
       orientation = "h",
-      y = -0.25,
+      y = -0.28,
       x = 0.5,
       xanchor = "center",
-      bgcolor = "rgba(255, 255, 255, 0.9)",
-      bordercolor = "#E1E5EA",
+      yanchor = "top",
+      bgcolor = "rgba(255, 255, 255, 0.95)",
+      bordercolor = "#E0E0E0",
       borderwidth = 1,
-      font = list(size = 11, color = "black")
+      font = list(size = 10, color = "#2f2f2f", family = "Arial"),
+      itemsizing = "constant"
+    ),
+    hoverlabel = list(
+      font = list(size = 11, family = "Arial"),
+      bgcolor = "white",
+      bordercolor = "#E0E0E0",
+      namelength = -1
     ),
     shapes = list(
       list(
@@ -581,7 +640,7 @@ forecast_plot <- plot_ly() %>%
         y0 = 0,
         y1 = 1,
         yref = "paper",
-        line = list(color = "#957DAD", dash = "dot", width = 2)
+        line = list(color = "#957DAD", dash = "dot", width = 1.5)
       )
     ),
     annotations = list(
@@ -593,8 +652,13 @@ forecast_plot <- plot_ly() %>%
         showarrow = FALSE,
         bgcolor = "white",
         bordercolor = "#957DAD",
-        font = list(size = 12, color = "black")
+        font = list(size = 11, color = "#2f2f2f", family = "Arial")
       )
+    ),
+    modebar = list(
+      bgcolor = "transparent",
+      color = "#2f2f2f",
+      activecolor = "#1f77b4"
     )
   )
 
@@ -1085,18 +1149,30 @@ Remember: This report is like a weather forecast for markets - it helps you unde
 ```{css, echo=FALSE}
 /* Global text color settings */
 body, p, h1, h2, h3, h4, h5, h6, th, td, li, .table, .tocify {
-  color: black !important;
+  color: #1a1a1a !important;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Document wide settings */
+body {
+  background: linear-gradient(150deg, #ffffff 0%, #f8fafc 100%);
+  line-height: 1.6;
+  letter-spacing: -0.011em;
 }
 
 /* Enhanced TOC styling */
 .tocify {
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
   font-size: 14px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 
+              0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
 .tocify .tocify-item a {
-  color: black !important;
+  color: #1a1a1a !important;
   padding: 8px 15px;
 }
 
@@ -1124,21 +1200,23 @@ body, p, h1, h2, h3, h4, h5, h6, th, td, li, .table, .tocify {
   border-radius: 12px;
 }
 
-/* Plot styling - adjusted for consistent margins */
+/* Plot styling - maintaining consistent width and spacing */
 .plotly {
-  margin: 30px 0 !important;  /* Changed to match other elements */
+  margin: 60px 0 80px 0 !important;  /* Increased vertical spacing */
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06),
+              0 2px 10px rgba(0, 0, 0, 0.04);
   transition: transform 0.2s ease;
   background: white;
   padding: 15px;
-  width: 100% !important;  /* Full width to match other elements */
-  max-width: 100% !important;  /* Ensure it doesn't exceed container */
+  width: 100% !important;  /* Ensuring full width */
+  max-width: 100% !important;  /* Maintaining max width constraint */
 }
 
 .plotly:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08),
+              0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 /* Plot container alignment */
@@ -1148,20 +1226,28 @@ body, p, h1, h2, h3, h4, h5, h6, th, td, li, .table, .tocify {
 
 /* Table styling */
 table {
-  margin: 25px 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  margin: 35px 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   border-radius: 12px;
   overflow: hidden;
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
   background: white;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+th {
+  background: #f7fafc;
+  font-weight: 600;
+  padding: 12px 16px;
 }
 
 /* Header styling */
 h2 {
-  color: black !important;
-  margin-top: 50px;
+  color: #1a1a1a !important;
+  margin-top: 70px;
+  margin-bottom: 40px;
   padding-bottom: 12px;
   border-bottom: 3px solid #e1e8f0;
   font-weight: 600;
@@ -1179,29 +1265,34 @@ h2::after {
   background: #4CAF50;
 }
 
+h3 {
+  margin-top: 50px;
+  margin-bottom: 30px;
+}
+
 /* Note styling */
 .helpful-note {
   background: linear-gradient(to right, #f8f9fa, white);
   border-left: 4px solid #4CAF50;
   padding: 20px;
-  margin: 25px 0;
+  margin: 40px 0;
   border-radius: 0 12px 12px 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 /* Date stamp styling */
 .date-stamp {
   text-align: center;
-  color: black !important;
+  color: #4a5568 !important;
   font-size: 0.95em;
-  margin: 25px 0;
+  margin: 40px 0;
   padding: 15px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #eee;
 }
 
-/* Container width control */
+/* Container width control and consistency */
 div.main-container {  
   max-width: 95vw;
 }
@@ -1211,5 +1302,58 @@ div.main-container {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+/* Section spacing */
+.section {
+  margin-top: 60px;
+  margin-bottom: 40px;
+}
+
+/* Chart title spacing */
+.chart-title {
+  margin: 40px 0 20px 0;
+}
+
+/* Spacing after plots */
+.plot-container + p {
+  margin-top: 30px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .plotly {
+    margin: 40px 0 60px 0 !important;
+  }
+  
+  h2 {
+    margin-top: 50px;
+    margin-bottom: 30px;
+  }
+  
+  table {
+    margin: 25px 0;
+  }
+  
+  .main-container {
+    max-width: 95vw;
+  }
+}
+
+/* Print optimization */
+@media print {
+  .plotly {
+    margin: 30px 0 !important;
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  
+  .helpful-note {
+    break-inside: avoid;
+  }
+  
+  table {
+    break-inside: avoid;
+  }
 }
 ```
