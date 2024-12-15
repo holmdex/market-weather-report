@@ -364,8 +364,11 @@ monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price,
         "<br>",
         "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
       ),
-      font = list(size = 24, color = "black")
+      font = list(size = 24, color = "black"),
+      y = 0.95
     ),
+    plot_bgcolor = "#F7FBFF",
+    paper_bgcolor = "#F7FBFF",
     yaxis = list(
       title = "Value (Starting Point = 100)",
       tickfont = list(size = 12, color = "black"),
@@ -379,13 +382,19 @@ monthly_plot <- plot_ly(monthly_data, x = ~date, y = ~norm_price,
       gridcolor = "#E1E5EA",
       automargin = TRUE
     ),
+    margin = list(l = 80, r = 80, t = 100, b = 80),
+    height = 600,
     showlegend = TRUE,
     legend = list(
-      font = list(color = "black"),
-      bgcolor = "rgba(255, 255, 255, 0.9)"
-    ),
-    margin = list(l = 80, r = 80, t = 100, b = 80),
-    height = 600
+      orientation = "h",
+      y = -0.2,
+      x = 0.5,
+      xanchor = "center",
+      bgcolor = "rgba(255, 255, 255, 0.9)",
+      bordercolor = "#E1E5EA",
+      borderwidth = 1,
+      font = list(color = "black")
+    )
   )
 
 monthly_plot
@@ -412,8 +421,11 @@ yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price,
         "<br>",
         "<sup>Double-Click on market names to see through the fog! 🔍</sup>"
       ),
-      font = list(size = 24, color = "black")
+      font = list(size = 24, color = "black"),
+      y = 0.95
     ),
+    plot_bgcolor = "#F7FBFF",
+    paper_bgcolor = "#F7FBFF",
     yaxis = list(
       title = "Value (Starting Point = 100)",
       tickfont = list(size = 12, color = "black"),
@@ -427,13 +439,19 @@ yearly_plot <- plot_ly(yearly_data, x = ~date, y = ~norm_price,
       gridcolor = "#E1E5EA",
       automargin = TRUE
     ),
+    margin = list(l = 80, r = 80, t = 100, b = 80),
+    height = 600,
     showlegend = TRUE,
     legend = list(
-      font = list(color = "black"),
-      bgcolor = "rgba(255, 255, 255, 0.9)"
-    ),
-    margin = list(l = 80, r = 80, t = 100, b = 80),
-    height = 600
+      orientation = "h",
+      y = -0.2,
+      x = 0.5,
+      xanchor = "center",
+      bgcolor = "rgba(255, 255, 255, 0.9)",
+      bordercolor = "#E1E5EA",
+      borderwidth = 1,
+      font = list(color = "black")
+    )
   )
 
 yearly_plot
